@@ -28,44 +28,54 @@ export default function Dashboard() {
   }, [])
 
   const fetchDashboardData = async () => {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    setUser(user)
+    try {
+      setLoading(true)
+      const { data: authData } = await supabase.auth.getUser()
+      const user = authData?.user
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      setUser(user)
 
-    // 1. Get Income from Profile
-    const { data: profile } = await supabase.from('profiles').select('monthly_income').eq('id', user.id).single()
-    const income = profile?.monthly_income || 0
+      // 1. Get Income from Profile
+      const { data: profile, error: profileErr } = await supabase.from('profiles').select('monthly_income').eq('id', user.id).maybeSingle()
+      const income = profile?.monthly_income || 0
 
-    // 2. Get Total Expenses (Current Month)
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-    const { data: expenses } = await supabase.from('expenses').select('*').eq('user_id', user.id).gte('date', startOfMonth)
-    const totalExpenses = expenses?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
-    setRecentExpenses(expenses?.slice(0, 5) || [])
+      // 2. Get Total Expenses (Current Month)
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      const { data: expenses, error: expErr } = await supabase.from('expenses').select('*').eq('user_id', user.id).gte('date', startOfMonth)
+      
+      const totalExpenses = (expenses || []).reduce((acc, curr) => acc + Number(curr.amount), 0)
+      setRecentExpenses(expenses?.slice(0, 5) || [])
 
-    // Aggregate category data
-    const catMap: any = {}
-    expenses?.forEach(exp => {
-      catMap[exp.category] = (catMap[exp.category] || 0) + Number(exp.amount)
-    })
-    const formattedCats = Object.entries(catMap).map(([name, value], idx) => ({
-      name,
-      value,
-      color: ["#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899"][idx % 5]
-    }))
-    setCategoryData(formattedCats)
+      // Aggregate category data
+      const catMap: any = {}
+      (expenses || []).forEach(exp => {
+        catMap[exp.category] = (catMap[exp.category] || 0) + Number(exp.amount)
+      })
+      const formattedCats = Object.entries(catMap).map(([name, value], idx) => ({
+        name,
+        value,
+        color: ["#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899"][idx % 5]
+      }))
+      setCategoryData(formattedCats)
 
-    // 3. Get Total Investments
-    const { data: investments } = await supabase.from('investments').select('*').eq('user_id', user.id)
-    const totalInvestments = investments?.reduce((acc, curr) => acc + Number(curr.current_value), 0) || 0
+      // 3. Get Total Investments
+      const { data: investments, error: invErr } = await supabase.from('investments').select('*').eq('user_id', user.id)
+      const totalInvestments = (investments || []).reduce((acc, curr) => acc + Number(curr.current_value), 0)
 
-    setStats({
-      income,
-      expenses: totalExpenses,
-      savings: income - totalExpenses,
-      investments: totalInvestments
-    })
-    setLoading(false)
+      setStats({
+        income,
+        expenses: totalExpenses,
+        savings: income - totalExpenses,
+        investments: totalInvestments
+      })
+    } catch (err) {
+      console.error("Dashboard error:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {
