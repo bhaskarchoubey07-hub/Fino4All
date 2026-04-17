@@ -50,7 +50,7 @@ export default function Dashboard() {
       setRecentExpenses(expenses?.slice(0, 5) || [])
 
       // Aggregate category data
-      const catMap: any = {}
+      const catMap: any = {};
       (expenses || []).forEach(exp => {
         catMap[exp.category] = (catMap[exp.category] || 0) + Number(exp.amount)
       })
