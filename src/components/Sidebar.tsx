@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Wallet, LayoutDashboard, ReceiptText, Landmark, PieChart, Bell, LogOut, Terminal } from "lucide-react"
+import { Wallet, LayoutDashboard, ReceiptText, Landmark, PieChart, Bell, LogOut, Terminal, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
