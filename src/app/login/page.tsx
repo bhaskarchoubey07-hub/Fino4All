@@ -98,6 +98,32 @@ export default function LoginPage() {
                 </div>
               )}
             </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#0a0a0b] px-2 text-white/20">Development Mode</span></div>
+            </div>
+
+            <Button 
+              type="button"
+              variant="outline"
+              className="w-full border-purple-500/20 text-purple-400 hover:bg-purple-500/10"
+              onClick={async () => {
+                setLoading(true)
+                const { error } = await supabase.auth.signInWithPassword({
+                  email: "test@scalpvision.ai",
+                  password: "password123",
+                })
+                if (error) {
+                  setError("Test account not found. Please sign up or create a profile.")
+                  setLoading(false)
+                } else {
+                  router.push("/dashboard")
+                }
+              }}
+            >
+              One-Click Demo Access
+            </Button>
           </form>
 
           <div className="mt-8 text-center text-white/50 text-sm">
