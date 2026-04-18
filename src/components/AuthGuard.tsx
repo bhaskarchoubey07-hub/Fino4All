@@ -29,6 +29,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           return
         }
 
+        // Sync metadata to profile if incomplete (recovered from email confirmation flow)
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+        if (profile) {
+          const metadata = user.user_metadata
+          const updates: any = {}
+          
+          if (metadata.full_name && !profile.full_name) updates.full_name = metadata.full_name
+          if (metadata.monthly_income && (profile.monthly_income === 0 || profile.monthly_income === null)) {
+            updates.monthly_income = metadata.monthly_income
+          }
+          if (metadata.financial_goals && (!profile.financial_goals || profile.financial_goals.length === 0)) {
+            updates.financial_goals = metadata.financial_goals
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            await supabase.from('profiles').update(updates).eq('id', user.id)
+          }
+        }
+
         setAuthenticated(true)
       } catch (err) {
         console.error("Auth check failed:", err)

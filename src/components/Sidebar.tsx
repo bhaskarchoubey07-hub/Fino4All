@@ -15,6 +15,7 @@ const navItems = [
   { name: "Advisor", href: "/advisor", icon: Wallet },
   { name: "Loans", href: "/loans", icon: Landmark },
   { name: "Investments", href: "/investments", icon: PieChart },
+  { name: "Profile", href: "/profile", icon: User },
 ]
 
 export function Sidebar() {

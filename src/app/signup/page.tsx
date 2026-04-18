@@ -38,6 +38,8 @@ export default function SignupPage() {
       options: {
         data: {
           full_name: formData.fullName,
+          monthly_income: parseFloat(formData.income),
+          financial_goals: [formData.goal]
         }
       }
     })

@@ -57,15 +57,24 @@ export default function AdvisorPage() {
 
     // Rule-based AI logic using profile data
     setTimeout(() => {
-      let response = "Based on your goals, I recommend reviewing your high-interest categories."
+      let response = "Based on your current financial standing, I recommend reviewing your budget allocation."
       const income = profile?.monthly_income || 0
+      const goals = profile?.financial_goals || []
       
-      if (userMsg.toLowerCase().includes("save")) {
-        response = `With your ${formatCurrency(income)} income, following the 50/30/20 rule would mean saving at least ${formatCurrency(income * 0.2)} monthly. You're currently on track.`
-      } else if (userMsg.toLowerCase().includes("investment")) {
-        response = "I see your portfolio. Diversifying into low-cost index funds could stabilize your long-term returns."
-      } else if (userMsg.toLowerCase().includes("loan")) {
-        response = "I suggest keeping total EMI below 40% of your income. For you, the limit is approximately " + formatCurrency(income * 0.4) + "."
+      const queryLower = userMsg.toLowerCase()
+      
+      if (queryLower.includes("save") || queryLower.includes("budget")) {
+        const recommendedSavings = income * 0.2
+        response = `With a monthly income of ${formatCurrency(income)}, the 50/30/20 rule suggests you should be saving at least ${formatCurrency(recommendedSavings)} monthly. Focus on reducing non-essential expenses if you're falling short.`
+      } else if (queryLower.includes("investment") || queryLower.includes("stock") || queryLower.includes("grow")) {
+        response = `I see your financial goals include "${goals.join(", ")}". For these objectives, consistent index fund contributions and maintaining a 6-month emergency fund are key. Avoid high-risk trades if your goals are long-term.`
+      } else if (queryLower.includes("loan") || queryLower.includes("debt") || queryLower.includes("interest")) {
+        const maxEmi = income * 0.4
+        response = `Debt management is crucial. Your safe EMI threshold is ${formatCurrency(maxEmi)} (40% of income). If your current total EMIs are above this, consider debt consolidation or aggressive principal repayment.`
+      } else if (queryLower.includes("goal") || queryLower.includes("future")) {
+        response = `Your target goals are ${goals.length > 0 ? goals.join(" and ") : "not fully defined yet"}. To reach these, I suggest setting up automated SIPs (Systematic Investment Plans) that trigger right after you receive your ${formatCurrency(income)} income.`
+      } else if (queryLower.includes("hi") || queryLower.includes("hello")) {
+        response = `Hello! I'm your FinOS AI. I've analyzed your data and I'm ready to help you optimize your ${formatCurrency(income)} monthly income.`
       }
 
       setChat(prev => [...prev, { role: "ai", message: response }])

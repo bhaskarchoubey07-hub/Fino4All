@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Card, Button } from "@/components/ui"
 import { cn, formatCurrency } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 
 // Mock Signal Interface
 interface TradingSignal {
@@ -38,6 +39,7 @@ export default function TradingTerminal() {
   const [loading, setLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState(15)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [tradeHistory, setTradeHistory] = useState<any[]>([])
 
   // Mock Signal Generator
   const generateSignals = useCallback(() => {
@@ -89,12 +91,33 @@ export default function TradingTerminal() {
     return () => clearInterval(timer)
   }, [generateSignals])
 
+  useEffect(() => {
+    fetchTradeHistory()
+  }, [])
+
+  const fetchTradeHistory = async () => {
+    const { data } = await supabase.from('trades').select('*').order('created_at', { ascending: false }).limit(10)
+    if (data) setTradeHistory(data)
+  }
+
   const handleManualRefresh = () => {
     generateSignals()
   }
 
-  const handleExecute = (signal: TradingSignal) => {
-    // Example Zerodha Kite URL format
+  const handleExecute = async (signal: TradingSignal) => {
+    // 1. Save to Supabase
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('trades').insert([{
+        user_id: user.id,
+        symbol: signal.symbol,
+        type: signal.type,
+        price: signal.price
+      }])
+      fetchTradeHistory()
+    }
+
+    // 2. Open Zerodha Kite
     const kiteUrl = `https://kite.zerodha.com/connect/basket?api_key=your_api_key&data=[{"variety":"regular","tradingsymbol":"${signal.symbol.replace(" ", "")}","exchange":"NSE","transaction_type":"${signal.type}","order_type":"MARKET","quantity":1,"product":"MIS","validity":"DAY"}]`
     window.open(kiteUrl, "_blank")
   }
@@ -326,6 +349,52 @@ export default function TradingTerminal() {
             ))
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Trade History */}
+      <div className="pt-8">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+          <Clock size={24} className="text-purple-400" /> Recent Executions
+        </h2>
+        <Card className="p-0 overflow-hidden">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-white/5 text-white/50 text-[10px] uppercase font-bold tracking-widest border-b border-white/5">
+                <th className="px-6 py-4">Symbol</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Price</th>
+                <th className="px-6 py-4">Executed At</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {tradeHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-white/20 text-sm">
+                    No recent executions found.
+                  </td>
+                </tr>
+              ) : (
+                tradeHistory.map((trade) => (
+                  <tr key={trade.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 font-bold text-white">{trade.symbol}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded",
+                        trade.type === "BUY" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                      )}>
+                        {trade.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-white/70">{formatCurrency(Number(trade.price))}</td>
+                    <td className="px-6 py-4 text-white/30 text-xs">
+                      {new Date(trade.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </Card>
       </div>
 
       {/* Footer Info */}
