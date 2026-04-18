@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Wallet, LayoutDashboard, ReceiptText, Landmark, PieChart, Bell, LogOut } from "lucide-react"
+import { Wallet, LayoutDashboard, ReceiptText, Landmark, PieChart, Bell, LogOut, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Trading Terminal", href: "/terminal", icon: Terminal },
   { name: "Expenses", href: "/expenses", icon: ReceiptText },
   { name: "Advisor", href: "/advisor", icon: Wallet },
   { name: "Loans", href: "/loans", icon: Landmark },

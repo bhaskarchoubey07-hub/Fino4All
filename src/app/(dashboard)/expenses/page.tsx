@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, Filter, ReceiptText, Calendar, Tag, MoreVertical, Trash2 } from "lucide-react"
+import { Plus, Search, Filter, ReceiptText, Tag, Trash2, Loader2 } from "lucide-react"
 import { Card, Button, Input } from "@/components/ui"
 import { supabase, type Expense } from "@/lib/supabase"
-import { formatCurrency, cn } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newExpense, setNewExpense] = useState({
     amount: "",
@@ -23,35 +25,52 @@ export default function ExpensesPage() {
   }, [])
 
   const fetchExpenses = async () => {
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*')
-      .order('date', { ascending: false })
-    
-    if (data) setExpenses(data)
-    setLoading(false)
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('date', { ascending: false })
+      
+      if (error) throw error
+      if (data) setExpenses(data)
+    } catch (err: any) {
+      setError(err.message)
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) {
+      alert("Amount must be greater than 0")
+      return
+    }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    setSaving(true)
+    setError(null)
 
-    const { error } = await supabase
-      .from('expenses')
-      .insert([
-        {
-          user_id: user.id,
-          amount: parseFloat(newExpense.amount),
-          category: newExpense.category,
-          note: newExpense.note,
-          date: newExpense.date
-        }
-      ])
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("User not authenticated")
 
-    if (!error) {
+      const { error } = await supabase
+        .from('expenses')
+        .insert([
+          {
+            user_id: user.id,
+            amount: parseFloat(newExpense.amount),
+            category: newExpense.category,
+            note: newExpense.note,
+            date: newExpense.date
+          }
+        ])
+
+      if (error) throw error
+
       setNewExpense({
         amount: "",
         category: "Food",
@@ -60,17 +79,27 @@ export default function ExpensesPage() {
       })
       setShowAddForm(false)
       fetchExpenses()
+    } catch (err: any) {
+      setError("Failed to save expense: " + err.message)
+    } finally {
+      setSaving(false)
     }
-    setLoading(false)
   }
 
   const deleteExpense = async (id: string) => {
-    const { error } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', id)
-    
-    if (!error) fetchExpenses()
+    if (!confirm("Are you sure you want to delete this expense?")) return
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      fetchExpenses()
+    } catch (err: any) {
+      alert("Error: " + err.message)
+    }
   }
 
   return (
@@ -98,6 +127,12 @@ export default function ExpensesPage() {
         </div>
         <Button variant="ghost" size="sm" className="text-purple-400">Analyze More</Button>
       </Card>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
 
       {showAddForm && (
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
@@ -154,7 +189,13 @@ export default function ExpensesPage() {
                 />
               </div>
               <div className="lg:col-span-4 flex justify-end gap-3 mt-2">
-                <Button type="submit" disabled={loading}>Save Expense</Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 size={18} className="animate-spin" /> Saving...
+                    </span>
+                  ) : "Save Expense"}
+                </Button>
               </div>
             </form>
           </Card>
@@ -173,28 +214,34 @@ export default function ExpensesPage() {
       </div>
 
       {/* Expenses Table */}
-      <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="px-6 py-4 text-sm font-semibold text-white/50">Transaction</th>
-                <th className="px-6 py-4 text-sm font-semibold text-white/50">Category</th>
-                <th className="px-6 py-4 text-sm font-semibold text-white/50">Date</th>
-                <th className="px-6 py-4 text-sm font-semibold text-white/50">Amount</th>
-                <th className="px-6 py-4 text-sm font-semibold text-white/50">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {expenses.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-white/30">
-                    No transactions found. Add your first expense above!
-                  </td>
+      <Card className="p-0 overflow-hidden min-h-[400px]">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/30 gap-4">
+            <Loader2 size={40} className="animate-spin text-purple-500" />
+            <p className="text-lg">Loading expenses...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-6 py-4 text-sm font-semibold text-white/50">Transaction</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-white/50">Category</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-white/50">Date</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-white/50">Amount</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-white/50">Action</th>
                 </tr>
-              ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-white/5 transition-colors group">
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {expenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-white/30">
+                      No transactions found. Add your first expense above!
+                    </td>
+                  </tr>
+                ) : (
+                  expenses.map((expense) => (
+                    <tr key={expense.id} className="hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
@@ -228,6 +275,7 @@ export default function ExpensesPage() {
             </tbody>
           </table>
         </div>
+        )}
       </Card>
     </div>
   )
