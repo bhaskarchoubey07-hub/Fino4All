@@ -17,6 +17,7 @@ export default function SignupPage() {
     income: "",
     goal: ""
   })
+  const [isVerified, setIsVerified] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -45,21 +46,46 @@ export default function SignupPage() {
       setError(error.message)
       setLoading(false)
     } else if (data.user) {
-      // Update profile with income and goals
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          monthly_income: parseFloat(formData.income),
-          financial_goals: [formData.goal]
-        })
-        .eq('id', data.user.id)
-
-      if (profileError) {
-        console.error("Profile update error:", profileError)
+      // Check if user is redirected or needs confirmation
+      if (data.session) {
+        // Auto-logged in (confirmation was off)
+        // Update profile with income and goals
+        await supabase
+          .from('profiles')
+          .update({
+            monthly_income: parseFloat(formData.income),
+            financial_goals: [formData.goal]
+          })
+          .eq('id', data.user.id)
+        
+        router.push("/dashboard")
+      } else {
+        // Confirmation is required
+        setIsVerified(true)
+        setLoading(false)
       }
-      
-      router.push("/dashboard")
     }
+  }
+
+  if (isVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+          <Card className="glass-card text-center p-10">
+            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Mail className="text-emerald-400" size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Check your Inbox</h2>
+            <p className="text-white/50 mb-8 leading-relaxed">
+              We've sent a verification link to <span className="text-white font-medium">{formData.email}</span>. Please click the link to activate your FinOS account.
+            </p>
+            <Button onClick={() => router.push("/login")} variant="outline" className="w-full">
+              Back to Sign In
+            </Button>
+          </Card>
+        </motion.div>
+      </div>
+    )
   }
 
   return (

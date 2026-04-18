@@ -26,7 +26,11 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError(error.message)
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        setError("Your email is not confirmed. Please check your inbox or toggle 'Confirm email' OFF in your Supabase Dashboard Settings.")
+      } else {
+        setError(error.message)
+      }
       setLoading(false)
     } else {
       router.push("/dashboard")
